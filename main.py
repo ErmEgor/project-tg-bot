@@ -15,7 +15,7 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 
 TOKEN = "7711881075:AAHIzBzogyLUSeitdeWzR2Ahq-KpN1MTR9U"
 ADMIN_ID = 7586559527  # Проверьте, что это ваш ID
-WEBHOOK_HOST = "https://telegram-bot-k3q0.onrender.com"
+WEBHOOK_HOST = "https://project-tg-bot.onrender.com"
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 WEBAPP_HOST = "0.0.0.0"
