@@ -36,7 +36,7 @@ main_keyboard = ReplyKeyboardMarkup(
 
 portfolio_inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [
-        InlineKeyboardButton(text="📱 Приложение", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/")),
+        InlineKeyboardButton(text="📱 Приложение (Test)", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/test.html")),
         InlineKeyboardButton(text="🌐 Лендинг", url="https://ermegor.github.io/BuildMax/")
     ]
 ])
@@ -111,7 +111,7 @@ async def on_shutdown():
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     print(f"Получена команда /start от {message.from_user.id}")
-    await message.answer(f"Здравствуй! Что бы ты хотел узнать?", reply_markup=main_keyboard)
+    await message.answer(f"Здравствуй! Что тебя интересует?", reply_markup=main_keyboard)
 
 @dp.message(Command("help"))
 async def process_help_command(message: types.Message):
