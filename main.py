@@ -13,7 +13,7 @@ from aiohttp import web
 from aiogram.client.default import DefaultBotProperties
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-TOKEN = "7711881075:AAHIzBzogyLUSeitdeWzR2Ahq-KpN1MTR9U"
+TOKEN = "7711881075:AAH9Yvz9vRTabNUcn7fk5asEX6RoL0Gy9_k"
 ADMIN_ID = 7586559527  # Проверьте, что это ваш ID
 WEBHOOK_HOST = "https://project-tg-bot.onrender.com"
 WEBHOOK_PATH = "/webhook"
