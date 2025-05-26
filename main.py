@@ -111,7 +111,7 @@ async def on_shutdown():
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     print(f"Получена команда /start от {message.from_user.id}")
-    await message.answer(f"Здравствуй! Выбери действие:", reply_markup=main_keyboard)
+    await message.answer(f"Здравствуй! Что бы ты хотел узнать?:", reply_markup=main_keyboard)
 
 @dp.message(Command("help"))
 async def process_help_command(message: types.Message):
