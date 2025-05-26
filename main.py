@@ -36,7 +36,7 @@ main_keyboard = ReplyKeyboardMarkup(
 
 portfolio_inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [
-        InlineKeyboardButton(text="📱 Приложение", web_app=types.WebAppInfo(url="https://project-tg-frontend-ermegors-projects.vercel.app/")),
+        InlineKeyboardButton(text="📱 Приложение", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/")),
         InlineKeyboardButton(text="🌐 Лендинг", url="https://ermegor.github.io/BuildMax/")
     ]
 ])
