@@ -36,7 +36,7 @@ main_keyboard = ReplyKeyboardMarkup(
 
 portfolio_inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [
-        InlineKeyboardButton(text="📱 Приложение (Test)", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/test.html")),
+        InlineKeyboardButton(text="📱 Приложение (Test)", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/")),
         InlineKeyboardButton(text="🌐 Лендинг", url="https://ermegor.github.io/BuildMax/")
     ]
 ])
@@ -57,7 +57,7 @@ contact_inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     ]
 ])
 
-# --- Установка команд бота ---
+# --- Установка команд бота! ---
 
 async def set_bot_commands():
     commands = [
