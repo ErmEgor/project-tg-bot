@@ -207,7 +207,7 @@ async def handle_web_app_data(message: types.Message):
             reply_markup=main_keyboard
         )
 
-# Обработчик POST-запроса
+# Обработчик POST-запросаa
 async def handle_submit(request):
     try:
         data = await request.json()
