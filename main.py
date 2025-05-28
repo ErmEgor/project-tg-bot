@@ -187,6 +187,10 @@ async def handle_web_app_data(message: types.Message):
         print(f"Получены данные из Web App от {message.from_user.id}: {message.web_app_data.data}")
         try:
             data = json.loads(message.web_app_data.data)
+            if data.get('action') == 'back':
+                print(f"Получена команда 'back' от {message.from_user.id}")
+                await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
+                return
             name = data.get('name', 'Не указано')
             msg_text = data.get('message', 'Не указано')
             text = f"<b>Новая заявка (Web App)</b>\nИмя: {name}\nСообщение: {msg_text}\nОт: {message.from_user.id}"
