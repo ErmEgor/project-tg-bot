@@ -24,7 +24,7 @@ WEBAPP_PORT = int(os.getenv("PORT", 8080))
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# --- Клавиатуры (без изменений) ---
+# --- Клавиатуры (без изменений1) ---
 
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
