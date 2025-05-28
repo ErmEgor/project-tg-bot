@@ -199,6 +199,13 @@ async def handle_web_app_data(message: types.Message):
         except Exception as e:
             print(f"Ошибка отправки сообщения администратору: {e}")
             await message.answer("Ошибка сервера. Попробуйте снова позже.", reply_markup=main_keyboard)
+    else:
+        print(f"Получено неподдерживаемое сообщение от {message.from_user.id}: {message.text}")
+        await message.answer(
+            "<b>Внимание!</b> Этот бот работает только через кнопки или Web App. Пожалуйста, выбери действие ниже:",
+            parse_mode=ParseMode.HTML,
+            reply_markup=main_keyboard
+        )
 
 # Обработчик POST-запроса
 async def handle_submit(request):
