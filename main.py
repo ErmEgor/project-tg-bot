@@ -233,10 +233,11 @@ async def handle_web_app_data(message: types.Message):
                 await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
                 return
             name = data.get('name', 'Не указано')
+            contact = data.get('contact', 'Не указано')
             msg_text = data.get('message', 'Не указано')
-            text = f"<b>Новая заявка (Web App)</b>\nИмя: {name}\nСообщение: {msg_text}\nОт: {message.from_user.id}"
+            text = f"<b>Новая заявка (Web App)</b>\nИмя: {name}\nКонтакт: {contact}\nСообщение: {msg_text}\nОт: {message.from_user.id}"
             logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {text}")
-            await send_log_to_telegram(f"Новая заявка: Имя: {name}, Сообщение: {msg_text}")
+            await send_log_to_telegram(f"Новая заявка: Имя: {name}, Контакт: {contact}, Сообщение: {msg_text}")
             await bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode=ParseMode.HTML)
             await message.answer("Ваша заявка отправлена! Я свяжусь с вами скоро.", reply_markup=main_keyboard)
         except json.JSONDecodeError as e:
@@ -291,11 +292,12 @@ async def handle_submit(request):
             return web.Response(text="Ошибка: Пустое тело запроса", status=400)
         data = json.loads(raw_data.decode('utf-8'))
         name = data.get('name', 'Не указано')
+        contact = data.get('contact', 'Не указано')
         message = data.get('message', 'Не указано')
         
-        msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nСообщение: {message}"
+        msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nКонтакт: {contact}\nСообщение: {message}"
         logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {msg}")
-        await send_log_to_telegram(f"Новая заявка: Имя: {name}, Сообщение: {message}")
+        await send_log_to_telegram(f"Новая заявка: Имя: {name}, Контакт: {contact}, Сообщение: {message}")
         await bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode=ParseMode.HTML)
         return web.json_response({"status": "success"})
     except json.JSONDecodeError as e:
