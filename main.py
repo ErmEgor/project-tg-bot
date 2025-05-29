@@ -19,14 +19,14 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),  # Вывод в консоль (для Render)
-        logging.FileHandler('app.log')  # Сохранение в файл
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
     ]
 )
 logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv("TOKEN", "7711881075:AAH9Yvz9vRTabNUcn7fk5asEX6RoL0Gy9_k")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "7586559527"))  # Проверьте ваш ID
+ADMIN_ID = int(os.getenv("ADMIN_ID", "7586559527"))
 WEBHOOK_HOST = "https://project-tg-bot.onrender.com"
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
@@ -35,6 +35,24 @@ WEBAPP_PORT = int(os.getenv("PORT", 8080))
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
+
+# CORS настройки
+ALLOWED_ORIGINS = [
+    "https://project-tg-frontend-git-main-ermegors-projects.vercel.app",
+    "http://localhost:3000"
+]
+
+async def cors_middleware(app, handler):
+    async def middleware(request):
+        origin = request.headers.get('Origin', '')
+        logger.info(f"[Middleware] Origin: {origin}, Method: {request.method}")
+        await send_log_to_telegram(f"[Middleware] Origin: {origin}, Method: {request.method}")
+        response = await handler(request)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS, GET'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+        return response
+    return middleware
 
 # Функция для отправки логов в Telegram
 async def send_log_to_telegram(message):
@@ -133,7 +151,7 @@ async def on_shutdown():
     logger.info("Сессия бота закрыта")
     await send_log_to_telegram("Сессия бота закрыта")
 
-# --- Обработчики ---
+# --- Обработчики Telegram ---
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     logger.info(f"Получена команда /start от {message.from_user.id}")
@@ -252,7 +270,7 @@ async def handle_web_app_data(message: types.Message):
             reply_markup=main_keyboard
         )
 
-# --- HTTP-маршруты для отладки ---
+# --- HTTP-маршруты ---
 async def handle_root(request):
     logger.info("Получен запрос на корневой маршрут")
     await send_log_to_telegram("Получен запрос на /")
@@ -279,15 +297,52 @@ async def handle_test(request):
         await send_log_to_telegram(f"Ошибка тестового сообщения: {e}")
         return web.Response(text=f"Ошибка: {e}")
 
-# --- Запускa ---
-app = web.Application()
+async def handle_submit(request):
+    logger.info(f"Получен запрос: {request.method} /submit")
+    await send_log_to_telegram(f"Получен запрос: {request.method} /submit")
+    
+    headers_str = ", ".join([f"{key}: {value}" for key, value in request.headers.items()])
+    logger.info(f"Заголовки запроса: {headers_str}")
+    await send_log_to_telegram(f"Заголовки запроса: {headers_str}")
+    
+    try:
+        raw_data = await request.read()
+        data = json.loads(raw_data.decode('utf-8'))
+        logger.info(f"Тело запроса: {data}")
+        await send_log_to_telegram(f"Тело запроса: {json.dumps(data, ensure_ascii=False)}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Ошибка декодирования JSON: {str(e)}")
+        await send_log_to_telegram(f"Ошибка декодирования JSON: {str(e)}")
+        return web.Response(text="Ошибка: Неверный формат данных", status=400)
+
+    name = data.get('name', 'Не указано')
+    message = data.get('message', 'Не указано')
+    
+    msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nСообщение: {message}"
+    logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {msg}")
+    await send_log_to_telegram(f"Отправляем сообщение администратору: {msg}")
+    
+    try:
+        await bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode=ParseMode.HTML)
+        logger.info("Сообщение успешно отправлено")
+        await send_log_to_telegram("Сообщение успешно отправлено")
+        return web.json_response({"status": "success"})
+    except Exception as e:
+        logger.error(f"Ошибка отправки сообщения: {e}")
+        await send_log_to_telegram(f"Ошибка отправки сообщения: {e}")
+        return web.Response(text=f"Ошибка: {str(e)}", status=500)
+
+# --- Запуск ---
+app = web.Application(middlewares=[cors_middleware])
 request_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
 request_handler.register(app, path=WEBHOOK_PATH)
 setup_application(app, dp, bot=bot)
 app.add_routes([
     web.get('/', handle_root),
     web.get('/logs', handle_logs),
-    web.get('/test', handle_test)
+    web.get('/test', handle_test),
+    web.post('/submit', handle_submit),
+    web.options('/submit', handle_submit)  # Поддержка OPTIONS для CORS
 ])
 
 async def main():
