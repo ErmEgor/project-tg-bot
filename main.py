@@ -279,7 +279,7 @@ async def handle_test(request):
         await send_log_to_telegram(f"Ошибка тестового сообщения: {e}")
         return web.Response(text=f"Ошибка: {e}")
 
-# --- Запуск ---
+# --- Запускa ---
 app = web.Application()
 request_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
 request_handler.register(app, path=WEBHOOK_PATH)
