@@ -308,6 +308,10 @@ async def handle_submit(request):
         logger.error(f"Ошибка отправки сообщения: {e}")
         await send_log_to_telegram(f"Ошибка отправки сообщения: {e}")
         return web.Response(text=f"Ошибка: {str(e)}", status=500)
+    
+async def handle_ping(request):
+    logger.info("Получен пинг-запрос")
+    return web.Response(text="Pong")
 
 # --- Запуск ---
 app = web.Application(middlewares=[cors_middleware])
@@ -318,6 +322,7 @@ app.add_routes([
     web.get('/', handle_root),
     web.get('/logs', handle_logs),
     web.get('/test', handle_test),
+    web.get('/ping', handle_ping),
     web.post('/submit', handle_submit),
     web.options('/submit', handle_submit_options)
 ])
