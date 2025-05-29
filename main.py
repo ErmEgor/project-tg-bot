@@ -297,6 +297,14 @@ async def handle_test(request):
         await send_log_to_telegram(f"Ошибка тестового сообщения: {e}")
         return web.Response(text=f"Ошибка: {e}")
 
+async def handle_submit_options(request):
+    logger.info("Получен запрос: OPTIONS /submit")
+    await send_log_to_telegram("Получен запрос: OPTIONS /submit")
+    headers_str = ", ".join([f"{key}: {value}" for key, value in request.headers.items()])
+    logger.info(f"Заголовки запроса: {headers_str}")
+    await send_log_to_telegram(f"Заголовки запроса: {headers_str}")
+    return web.Response(status=200)
+
 async def handle_submit(request):
     logger.info(f"Получен запрос: {request.method} /submit")
     await send_log_to_telegram(f"Получен запрос: {request.method} /submit")
@@ -307,6 +315,10 @@ async def handle_submit(request):
     
     try:
         raw_data = await request.read()
+        if not raw_data:
+            logger.error("Ошибка: Пустое тело запроса")
+            await send_log_to_telegram("Ошибка: Пустое тело запроса")
+            return web.Response(text="Ошибка: Пустое тело запроса", status=400)
         data = json.loads(raw_data.decode('utf-8'))
         logger.info(f"Тело запроса: {data}")
         await send_log_to_telegram(f"Тело запроса: {json.dumps(data, ensure_ascii=False)}")
@@ -342,7 +354,7 @@ app.add_routes([
     web.get('/logs', handle_logs),
     web.get('/test', handle_test),
     web.post('/submit', handle_submit),
-    web.options('/submit', handle_submit)  # Поддержка OPTIONS для CORS
+    web.options('/submit', handle_submit_options)  # Отдельный обработчик для OPTIONS
 ])
 
 async def main():
