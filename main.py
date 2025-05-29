@@ -31,7 +31,7 @@ WEBHOOK_HOST = "https://project-tg-bot.onrender.com"
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = int(os.getenv("PORT", 8080))
+WEBAPP_PORT = int(os.getenv("PORT", 10000))
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
@@ -45,8 +45,6 @@ ALLOWED_ORIGINS = [
 async def cors_middleware(app, handler):
     async def middleware(request):
         origin = request.headers.get('Origin', '')
-        logger.info(f"[Middleware] Origin: {origin}, Method: {request.method}")
-        await send_log_to_telegram(f"[Middleware] Origin: {origin}, Method: {request.method}")
         response = await handler(request)
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS, GET'
@@ -54,7 +52,7 @@ async def cors_middleware(app, handler):
         return response
     return middleware
 
-# Функция для отправки логов в Telegram
+# Функция для отправки логов в Telegram (только для ошибок и критических событий)
 async def send_log_to_telegram(message):
     try:
         await bot.send_message(chat_id=ADMIN_ID, text=f"<b>Лог (main.py):</b>\n{message}", parse_mode=ParseMode.HTML)
@@ -62,7 +60,7 @@ async def send_log_to_telegram(message):
         logger.error(f"Ошибка отправки лога в Telegram: {e}")
 
 # --- Клавиатуры ---
-main_keyboard = ReplyKeyboardMarkup(
+main_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📌 Помощь"), KeyboardButton(text="📱 Портфолио")],
         [KeyboardButton(text="ℹ️ Обо мне"), KeyboardButton(text="📩 Связаться")]
@@ -70,23 +68,23 @@ main_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-portfolio_inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+portfolio_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[
     [
         InlineKeyboardButton(text="📱 Приложение", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/")),
         InlineKeyboardButton(text="🌐 Лендинг", url="https://ermegor.github.io/BuildMax/")
     ]
 ])
 
-back_keyboard = ReplyKeyboardMarkup(
+back_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="⬅️ Назад")]],
     resize_keyboard=True
 )
 
-help_keyboard = back_keyboard
-about_keyboard = back_keyboard
-contact_keyboard = back_keyboard
+help_keyboard: ReplyKeyboardMarkup = back_keyboard
+about_keyboard: ReplyKeyboardMarkup = back_keyboard
+contact_keyboard: ReplyKeyboardMarkup = back_keyboard
 
-contact_inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+contact_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[
     [
         InlineKeyboardButton(text="📧 Почта", url="mailto:ermilegor@gmail.com"),
         InlineKeyboardButton(text="📨 Telegram", url="tg://resolve?domain=prostof2p")
@@ -155,13 +153,11 @@ async def on_shutdown():
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     logger.info(f"Получена команда /start от {message.from_user.id}")
-    await send_log_to_telegram(f"Команда /start от {message.from_user.id}")
     await message.answer(f"Здравствуй! Что тебя интересует?", reply_markup=main_keyboard)
 
 @dp.message(Command("help"))
 async def process_help_command(message: types.Message):
     logger.info(f"Получена команда /help от {message.from_user.id}")
-    await send_log_to_telegram(f"Команда /help от {message.from_user.id}")
     await message.answer(
         "<b>Это раздел помощи.</b>\n"
         "Данный бот — одна из работ <b>Е.Егора</b>.\n"
@@ -175,25 +171,21 @@ async def process_help_command(message: types.Message):
 @dp.message(lambda m: m.text == "📌 Помощь")
 async def process_help_button(message: types.Message):
     logger.info(f"Нажата кнопка Помощь от {message.from_user.id}")
-    await send_log_to_telegram(f"Нажата кнопка Помощь от {message.from_user.id}")
     await process_help_command(message)
 
 @dp.message(Command("portfolio"))
 async def process_portfolio_command(message: types.Message):
     logger.info(f"Получена команда /portfolio от {message.from_user.id}")
-    await send_log_to_telegram(f"Команда /portfolio от {message.from_user.id}")
     await message.answer("Выбери проект:", reply_markup=portfolio_inline_keyboard)
 
 @dp.message(lambda m: m.text == "📱 Портфолио")
 async def process_portfolio_button(message: types.Message):
     logger.info(f"Нажата кнопка Портфолио от {message.from_user.id}")
-    await send_log_to_telegram(f"Нажата кнопка Портфолио от {message.from_user.id}")
     await process_portfolio_command(message)
 
 @dp.message(Command("about"))
 async def process_about_command(message: types.Message):
     logger.info(f"Получена команда /about от {message.from_user.id}")
-    await send_log_to_telegram(f"Команда /about от {message.from_user.id}")
     await message.answer(
         "<b>Обо мне</b>\n"
         "Меня зовут Егор, мне 14 лет. Я начинающий Telegram-разработчик.\n"
@@ -206,13 +198,11 @@ async def process_about_command(message: types.Message):
 @dp.message(lambda m: m.text == "ℹ️ Обо мне")
 async def process_about_button(message: types.Message):
     logger.info(f"Нажата кнопка Обо мне от {message.from_user.id}")
-    await send_log_to_telegram(f"Нажата кнопка Обо мне от {message.from_user.id}")
     await process_about_command(message)
 
 @dp.message(Command("contact"))
 async def process_contact_command(message: types.Message):
     logger.info(f"Получена команда /contact от {message.from_user.id}")
-    await send_log_to_telegram(f"Команда /contact от {message.from_user.id}")
     await message.answer(
         "<b>Связаться со мной</b>\n"
         "Почта: <a href='mailto:ermilegor@gmail.com'>ermilegor@gmail.com</a>\n"
@@ -225,32 +215,28 @@ async def process_contact_command(message: types.Message):
 @dp.message(lambda m: m.text == "📩 Связаться")
 async def process_contact_button(message: types.Message):
     logger.info(f"Нажата кнопка Связаться от {message.from_user.id}")
-    await send_log_to_telegram(f"Нажата кнопка Связаться от {message.from_user.id}")
     await process_contact_command(message)
 
 @dp.message(lambda m: m.text == "⬅️ Назад")
 async def process_back(message: types.Message):
     logger.info(f"Нажата кнопка Назад от {message.from_user.id}")
-    await send_log_to_telegram(f"Нажата кнопка Назад от {message.from_user.id}")
     await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
 
 @dp.message()
 async def handle_web_app_data(message: types.Message):
     if message.content_type == ContentType.WEB_APP_DATA:
         logger.info(f"Получены данные из Web App от {message.from_user.id}: {message.web_app_data.data}")
-        await send_log_to_telegram(f"Получены данные из Web App от {message.from_user.id}: {message.web_app_data.data}")
         try:
             data = json.loads(message.web_app_data.data)
             if data.get('action') == 'back':
                 logger.info(f"Получена команда 'back' от {message.from_user.id}")
-                await send_log_to_telegram(f"Получена команда 'back' от {message.from_user.id}")
                 await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
                 return
             name = data.get('name', 'Не указано')
             msg_text = data.get('message', 'Не указано')
             text = f"<b>Новая заявка (Web App)</b>\nИмя: {name}\nСообщение: {msg_text}\nОт: {message.from_user.id}"
             logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {text}")
-            await send_log_to_telegram(f"Отправляем заявку администратору: {text}")
+            await send_log_to_telegram(f"Новая заявка: Имя: {name}, Сообщение: {msg_text}")
             await bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode=ParseMode.HTML)
             await message.answer("Ваша заявка отправлена! Я свяжусь с вами скоро.", reply_markup=main_keyboard)
         except json.JSONDecodeError as e:
@@ -258,12 +244,11 @@ async def handle_web_app_data(message: types.Message):
             await send_log_to_telegram(f"Ошибка JSON: {e}")
             await message.answer("Ошибка обработки заявки. Попробуйте снова.", reply_markup=main_keyboard)
         except Exception as e:
-            logger.error(f"Ошибка отправки сообщения администратору: {e}")
+            logger.error(f"Ошибка отправки заявки: {e}")
             await send_log_to_telegram(f"Ошибка отправки заявки: {e}")
             await message.answer("Ошибка сервера. Попробуйте снова позже.", reply_markup=main_keyboard)
     else:
         logger.info(f"Получено неподдерживаемое сообщение от {message.from_user.id}: {message.text}")
-        await send_log_to_telegram(f"Неподдерживаемое сообщение от {message.from_user.id}: {message.text}")
         await message.answer(
             "<b>Внимание!</b> Этот бот работает только через кнопки или Web App. Пожалуйста, выбери действие ниже:",
             parse_mode=ParseMode.HTML,
@@ -273,12 +258,10 @@ async def handle_web_app_data(message: types.Message):
 # --- HTTP-маршруты ---
 async def handle_root(request):
     logger.info("Получен запрос на корневой маршрут")
-    await send_log_to_telegram("Получен запрос на /")
     return web.Response(text="Bot is running")
 
 async def handle_logs(request):
     logger.info("Получен запрос на просмотр логов")
-    await send_log_to_telegram("Запрос на просмотр логов /logs")
     try:
         with open('app.log', 'r') as f:
             logs = f.read()
@@ -288,7 +271,6 @@ async def handle_logs(request):
 
 async def handle_test(request):
     logger.info("Получен тестовый запрос /test")
-    await send_log_to_telegram("Тестовый запрос /test")
     try:
         await bot.send_message(chat_id=ADMIN_ID, text="Тестовое сообщение от сервера main.py")
         return web.Response(text="Тестовое сообщение отправлено в Telegram")
@@ -312,9 +294,9 @@ async def handle_submit(request):
         message = data.get('message', 'Не указано')
         
         msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nСообщение: {message}"
+        logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {msg}")
+        await send_log_to_telegram(f"Новая заявка: Имя: {name}, Сообщение: {message}")
         await bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode=ParseMode.HTML)
-        logger.info("Сообщение успешно отправлено")
-        await send_log_to_telegram("Сообщение успешно отправлено")
         return web.json_response({"status": "success"})
     except json.JSONDecodeError as e:
         logger.error(f"Ошибка декодирования JSON: {str(e)}")
@@ -335,7 +317,7 @@ app.add_routes([
     web.get('/logs', handle_logs),
     web.get('/test', handle_test),
     web.post('/submit', handle_submit),
-    web.options('/submit', handle_submit_options)  # Отдельный обработчик для OPTIONS
+    web.options('/submit', handle_submit_options)
 ])
 
 async def main():
