@@ -298,21 +298,9 @@ async def handle_test(request):
         return web.Response(text=f"Ошибка: {e}")
 
 async def handle_submit_options(request):
-    logger.info("Получен запрос: OPTIONS /submit")
-    await send_log_to_telegram("Получен запрос: OPTIONS /submit")
-    headers_str = ", ".join([f"{key}: {value}" for key, value in request.headers.items()])
-    logger.info(f"Заголовки запроса: {headers_str}")
-    await send_log_to_telegram(f"Заголовки запроса: {headers_str}")
     return web.Response(status=200)
 
 async def handle_submit(request):
-    logger.info(f"Получен запрос: {request.method} /submit")
-    await send_log_to_telegram(f"Получен запрос: {request.method} /submit")
-    
-    headers_str = ", ".join([f"{key}: {value}" for key, value in request.headers.items()])
-    logger.info(f"Заголовки запроса: {headers_str}")
-    await send_log_to_telegram(f"Заголовки запроса: {headers_str}")
-    
     try:
         raw_data = await request.read()
         if not raw_data:
@@ -320,25 +308,18 @@ async def handle_submit(request):
             await send_log_to_telegram("Ошибка: Пустое тело запроса")
             return web.Response(text="Ошибка: Пустое тело запроса", status=400)
         data = json.loads(raw_data.decode('utf-8'))
-        logger.info(f"Тело запроса: {data}")
-        await send_log_to_telegram(f"Тело запроса: {json.dumps(data, ensure_ascii=False)}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Ошибка декодирования JSON: {str(e)}")
-        await send_log_to_telegram(f"Ошибка декодирования JSON: {str(e)}")
-        return web.Response(text="Ошибка: Неверный формат данных", status=400)
-
-    name = data.get('name', 'Не указано')
-    message = data.get('message', 'Не указано')
-    
-    msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nСообщение: {message}"
-    logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {msg}")
-    await send_log_to_telegram(f"Отправляем сообщение администратору: {msg}")
-    
-    try:
+        name = data.get('name', 'Не указано')
+        message = data.get('message', 'Не указано')
+        
+        msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nСообщение: {message}"
         await bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode=ParseMode.HTML)
         logger.info("Сообщение успешно отправлено")
         await send_log_to_telegram("Сообщение успешно отправлено")
         return web.json_response({"status": "success"})
+    except json.JSONDecodeError as e:
+        logger.error(f"Ошибка декодирования JSON: {str(e)}")
+        await send_log_to_telegram(f"Ошибка декодирования JSON: {str(e)}")
+        return web.Response(text="Ошибка: Неверный формат данных", status=400)
     except Exception as e:
         logger.error(f"Ошибка отправки сообщения: {e}")
         await send_log_to_telegram(f"Ошибка отправки сообщения: {e}")
