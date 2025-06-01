@@ -72,6 +72,9 @@ portfolio_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_ke
     [
         InlineKeyboardButton(text="📱 Приложение", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/")),
         InlineKeyboardButton(text="🌐 Лендинг", url="https://ermegor.github.io/BuildMax/")
+    ],
+    [
+        InlineKeyboardButton(text="🎨 Все работы сразу (Behance)", url="https://www.behance.net/gallery/227197709/portfolio-e-egora")
     ]
 ])
 
