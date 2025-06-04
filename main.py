@@ -305,6 +305,12 @@ async def process_back(message: types.Message, state: FSMContext):
     await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
 
 # --- FSM для заказа ---
+@dp.message(Command("order"))
+async def process_order_command(message: types.Message, state: FSMContext):
+    logger.info(f"Получена команда /order от {message.from_user.id}")
+    await state.set_state(OrderForm.waiting_for_name)
+    await message.answer("Пожалуйста, укажите ваше имя:", reply_markup=order_keyboard)
+
 @dp.message(lambda m: m.text == "💼 Заказать услугу")
 async def process_order_button(message: types.Message, state: FSMContext):
     logger.info(f"Нажата кнопка Заказать услугу от {message.from_user.id}")
@@ -318,7 +324,7 @@ async def process_name(message: types.Message, state: FSMContext):
     await state.set_state(OrderForm.waiting_for_description)
     await message.answer("Опишите, какой бот или приложение вам нужен:", reply_markup=order_keyboard)
 
-@dp.message(OrderForm.waiting_for_description)
+@dp.message(OrderForm.waiting_description)
 async def process_description(message: types.Message, state: FSMContext):
     logger.info(f"Получено описание от {message.from_user.id}: {message.text}")
     user_data = await state.get_data()
