@@ -39,8 +39,8 @@ WEBAPP_HOST = "0.0.0.0"
 WEBAPP_PORT = int(os.getenv("PORT", 10000))
 
 # Настройка Google Sheets
-GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS")  # JSON-ключи из переменной окружения
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "your_spreadsheet_id_here")  # ID таблицы Google Sheets
+GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "your_spreadsheet_id_here")
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -69,7 +69,7 @@ async def send_log_to_telegram(message):
     except Exception as e:
         logger.error(f"Ошибка отправки лога в Telegram: {e}")
 
-# --- Подключение к Google Sheets ---
+# --- Google Sheets ---
 def get_sheets_service():
     try:
         credentials = service_account.Credentials.from_service_account_info(
@@ -86,11 +86,11 @@ async def append_to_sheets(data):
     try:
         service = get_sheets_service()
         sheet = service.spreadsheets()
-        values = [[data['name'], data['telegram'], data['description']]]
+        values = [[data['name'], data['telegram'], data['description'], data['user_id']]]
         body = {'values': values}
         result = sheet.values().append(
             spreadsheetId=SPREADSHEET_ID,
-            range='Sheet1!A:C',
+            range='Sheet1!A:D',
             valueInputOption='RAW',
             body=body
         ).execute()
@@ -101,10 +101,28 @@ async def append_to_sheets(data):
         await send_log_to_telegram(f"Ошибка добавления данных в Google Sheets: {e}")
         raise
 
+async def get_sheets_data(limit=10):
+    try:
+        service = get_sheets_service()
+        sheet = service.spreadsheets()
+        result = sheet.values().get(
+            spreadsheetId=SPREADSHEET_ID,
+            range='Sheet1!A:D'
+        ).execute()
+        values = result.get('values', [])
+        return values[-limit:] if values else []
+    except Exception as e:
+        logger.error(f"Ошибка чтения данных из Google Sheets: {e}")
+        await send_log_to_telegram(f"Ошибка чтения данных из Google Sheets: {e}")
+        return []
+
 # --- Определение состояний FSM ---
 class OrderForm(StatesGroup):
     waiting_for_name = State()
     waiting_for_description = State()
+
+class AdminNotify(StatesGroup):
+    waiting_for_message = State()
 
 # --- Клавиатуры ---
 main_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
@@ -112,6 +130,15 @@ main_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
         [KeyboardButton(text="📌 Помощь"), KeyboardButton(text="📱 Портфолио")],
         [KeyboardButton(text="ℹ️ Обо мне"), KeyboardButton(text="📩 Связаться")],
         [KeyboardButton(text="💼 Заказать услугу")]
+    ],
+    resize_keyboard=True
+)
+
+admin_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📜 Просмотр логов"), KeyboardButton(text="📋 Заявки")],
+        [KeyboardButton(text="📢 Отправить уведомление"), KeyboardButton(text="📊 Статистика")],
+        [KeyboardButton(text="⬅️ Выход")]
     ],
     resize_keyboard=True
 )
@@ -152,6 +179,7 @@ async def set_bot_commands():
         BotCommand(command="about", description="Узнать обо мне"),
         BotCommand(command="contact", description="Связаться со мной"),
         BotCommand(command="order", description="Заказать услугу"),
+        BotCommand(command="admin", description="Админ-панель (для админа)")
     ]
     await bot.set_my_commands(commands)
     logger.info("Команды бота установлены")
@@ -273,10 +301,10 @@ async def process_contact_button(message: types.Message):
 @dp.message(lambda m: m.text == "⬅️ Назад")
 async def process_back(message: types.Message, state: FSMContext):
     logger.info(f"Нажата кнопка Назад от {message.from_user.id}")
-    await state.clear()  # Сбрасываем состояние FSM
+    await state.clear()
     await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
 
-# --- Обработчики для кнопки "Заказать услугу" и FSM ---
+# --- FSM для заказа ---
 @dp.message(lambda m: m.text == "💼 Заказать услугу")
 async def process_order_button(message: types.Message, state: FSMContext):
     logger.info(f"Нажата кнопка Заказать услугу от {message.from_user.id}")
@@ -299,7 +327,8 @@ async def process_description(message: types.Message, state: FSMContext):
     data = {
         "name": user_data["name"],
         "telegram": telegram_username,
-        "description": message.text
+        "description": message.text,
+        "user_id": str(message.from_user.id)
     }
     
     try:
@@ -308,7 +337,6 @@ async def process_description(message: types.Message, state: FSMContext):
             "Ваша заявка успешно отправлена! Я свяжусь с вами скоро.",
             reply_markup=main_keyboard
         )
-        # Отправляем уведомление администратору
         admin_msg = (
             f"<b>Новая заявка (FSM)</b>\n"
             f"Имя: {data['name']}\n"
@@ -326,6 +354,118 @@ async def process_description(message: types.Message, state: FSMContext):
         )
     finally:
         await state.clear()
+
+# --- Админ-панель ---
+@dp.message(Command("admin"))
+async def admin_panel(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        logger.info(f"Неавторизованный доступ к админ-панели от {message.from_user.id}")
+        await message.answer("У вас нет доступа к админ-панели.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Админ-панель открыта для {message.from_user.id}")
+    await state.clear()
+    await message.answer("Добро пожаловать в админ-панель!", reply_markup=admin_keyboard)
+
+@dp.message(lambda m: m.text == "📜 Просмотр логов")
+async def view_logs(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Запрос логов от админа {message.from_user.id}")
+    try:
+        with open('app.log', 'r', encoding='utf-8') as f:
+            logs = f.readlines()[-10:]  # Последние 10 строк
+        log_text = "".join(logs) or "Логи пусты."
+        await message.answer(f"<b>Последние логи:</b>\n{log_text}", parse_mode=ParseMode.HTML, reply_markup=admin_keyboard)
+    except FileNotFoundError:
+        await message.answer("Логи не найдены.", reply_markup=admin_keyboard)
+
+@dp.message(lambda m: m.text == "📋 Заявки")
+async def view_orders(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Запрос заявок от админа {message.from_user.id}")
+    try:
+        orders = await get_sheets_data(limit=5)
+        if not orders:
+            await message.answer("Заявки отсутствуют.", reply_markup=admin_keyboard)
+            return
+        response = "<b>Последние заявки:</b>\n"
+        for order in orders:
+            name = order[0] if len(order) > 0 else "Не указано"
+            telegram = order[1] if len(order) > 1 else "Не указано"
+            desc = order[2] if len(order) > 2 else "Не указано"
+            user_id = order[3] if len(order) > 3 else "Не указано"
+            response += f"Имя: {name}\nTelegram: {telegram}\nОписание: {desc}\nUser ID: {user_id}\n---\n"
+        await message.answer(response, parse_mode=ParseMode.HTML, reply_markup=admin_keyboard)
+    except Exception as e:
+        logger.error(f"Ошибка при получении заявок: {e}")
+        await send_log_to_telegram(f"Ошибка при получении заявок: {e}")
+        await message.answer("Ошибка при загрузке заявок.", reply_markup=admin_keyboard)
+
+@dp.message(lambda m: m.text == "📢 Отправить уведомление")
+async def start_notification(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Запрос на отправку уведомления от админа {message.from_user.id}")
+    await state.set_state(AdminNotify.waiting_for_message)
+    await message.answer("Введите текст уведомления для всех пользователей:", reply_markup=back_keyboard)
+
+@dp.message(AdminNotify.waiting_for_message)
+async def send_notification(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        await state.clear()
+        return
+    logger.info(f"Получено уведомление от админа {message.from_user.id}: {message.text}")
+    try:
+        orders = await get_sheets_data()
+        user_ids = {order[3] for order in orders if len(order) > 3 and order[3].isdigit()}
+        for user_id in user_ids:
+            try:
+                await bot.send_message(chat_id=int(user_id), text=f"<b>Уведомление:</b>\n{message.text}", parse_mode=ParseMode.HTML)
+                logger.info(f"Уведомление отправлено пользователю {user_id}")
+            except Exception as e:
+                logger.error(f"Ошибка отправки уведомления пользователю {user_id}: {e}")
+        await message.answer("Уведомление отправлено всем пользователям.", reply_markup=admin_keyboard)
+    except Exception as e:
+        logger.error(f"Ошибка при отправке уведомлений: {e}")
+        await send_log_to_telegram(f"Ошибка при отправке уведомлений: {e}")
+        await message.answer("Ошибка при отправке уведомлений.", reply_markup=admin_keyboard)
+    finally:
+        await state.clear()
+
+@dp.message(lambda m: m.text == "📊 Статистика")
+async def view_stats(message: types.Message):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Запрос статистики от админа {message.from_user.id}")
+    try:
+        orders = await get_sheets_data()
+        total_orders = len(orders)
+        unique_users = len({order[3] for order in orders if len(order) > 3 and order[3].isdigit()})
+        response = (
+            f"<b>Статистика:</b>\n"
+            f"Всего заявок: {total_orders}\n"
+            f"Уникальных пользователей: {unique_users}"
+        )
+        await message.answer(response, parse_mode=ParseMode.HTML, reply_markup=admin_keyboard)
+    except Exception as e:
+        logger.error(f"Ошибка при получении статистики: {e}")
+        await send_log_to_telegram(f"Ошибка при получении статистики: {e}")
+        await message.answer("Ошибка при загрузке статистики.", reply_markup=admin_keyboard)
+
+@dp.message(lambda m: m.text == "⬅️ Выход")
+async def exit_admin(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Выход из админ-панели для {message.from_user.id}")
+    await state.clear()
+    await message.answer("Вы вернулись в главное меню.", reply_markup=main_keyboard)
 
 @dp.message()
 async def handle_web_app_data(message: types.Message):
@@ -399,10 +539,11 @@ async def handle_submit(request):
         name = data.get('name', 'Не указано')
         contact = data.get('contact', 'Не указано')
         message = data.get('message', 'Не указано')
+        user_id = data.get('user_id', 'Не указано')
         
-        msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nКонтакт: {contact}\nСообщение: {message}"
+        msg = f"<b>Новая заявка (через сервер)</b>\nИмя: {name}\nКонтакт: {contact}\nСообщение: {message}\nUser ID: {user_id}"
         logger.info(f"Отправляем сообщение администратору {ADMIN_ID}: {msg}")
-        await send_log_to_telegram(f"Новая заявка: Имя: {name}, Контакт: {contact}, Сообщение: {message}")
+        await send_log_to_telegram(f"Новая заявка: Имя: {name}, Контакт: {contact}, Сообщение: {message}, User ID: {user_id}")
         await bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode=ParseMode.HTML)
         return web.json_response({"status": "success"})
     except json.JSONDecodeError as e:
