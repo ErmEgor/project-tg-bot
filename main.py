@@ -10,9 +10,14 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
     BotCommand
 )
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp import web
 from aiogram.client.default import DefaultBotProperties
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 # Настройка логирования
 logging.basicConfig(
@@ -33,8 +38,13 @@ WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 WEBAPP_HOST = "0.0.0.0"
 WEBAPP_PORT = int(os.getenv("PORT", 10000))
 
+# Настройка Google Sheets
+GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS")  # JSON-ключи из переменной окружения
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "your_spreadsheet_id_here")  # ID таблицы Google Sheets
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
 
 # CORS настройки
 ALLOWED_ORIGINS = [
@@ -52,18 +62,56 @@ async def cors_middleware(app, handler):
         return response
     return middleware
 
-# Функция для отправки логов в Telegram (только для ошибок и критических событий)
+# Функция для отправки логов в Telegram
 async def send_log_to_telegram(message):
     try:
         await bot.send_message(chat_id=ADMIN_ID, text=f"<b>Лог (main.py):</b>\n{message}", parse_mode=ParseMode.HTML)
     except Exception as e:
         logger.error(f"Ошибка отправки лога в Telegram: {e}")
 
+# --- Подключение к Google Sheets ---
+def get_sheets_service():
+    try:
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(GOOGLE_SHEETS_CREDENTIALS), scopes=SCOPES
+        )
+        service = build('sheets', 'v4', credentials=credentials)
+        return service
+    except Exception as e:
+        logger.error(f"Ошибка подключения к Google Sheets: {e}")
+        asyncio.create_task(send_log_to_telegram(f"Ошибка подключения к Google Sheets: {e}"))
+        raise
+
+async def append_to_sheets(data):
+    try:
+        service = get_sheets_service()
+        sheet = service.spreadsheets()
+        values = [[data['name'], data['telegram'], data['description']]]
+        body = {'values': values}
+        result = sheet.values().append(
+            spreadsheetId=SPREADSHEET_ID,
+            range='Sheet1!A:C',
+            valueInputOption='RAW',
+            body=body
+        ).execute()
+        logger.info(f"Данные добавлены в Google Sheets: {data}")
+        await send_log_to_telegram(f"Новая заявка добавлена в Google Sheets: {data}")
+    except Exception as e:
+        logger.error(f"Ошибка добавления данных в Google Sheets: {e}")
+        await send_log_to_telegram(f"Ошибка добавления данных в Google Sheets: {e}")
+        raise
+
+# --- Определение состояний FSM ---
+class OrderForm(StatesGroup):
+    waiting_for_name = State()
+    waiting_for_description = State()
+
 # --- Клавиатуры ---
 main_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📌 Помощь"), KeyboardButton(text="📱 Портфолио")],
-        [KeyboardButton(text="ℹ️ Обо мне"), KeyboardButton(text="📩 Связаться")]
+        [KeyboardButton(text="ℹ️ Обо мне"), KeyboardButton(text="📩 Связаться")],
+        [KeyboardButton(text="💼 Заказать услугу")]
     ],
     resize_keyboard=True
 )
@@ -86,6 +134,7 @@ back_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
 help_keyboard: ReplyKeyboardMarkup = back_keyboard
 about_keyboard: ReplyKeyboardMarkup = back_keyboard
 contact_keyboard: ReplyKeyboardMarkup = back_keyboard
+order_keyboard: ReplyKeyboardMarkup = back_keyboard
 
 contact_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[
     [
@@ -102,6 +151,7 @@ async def set_bot_commands():
         BotCommand(command="portfolio", description="Посмотреть портфолио"),
         BotCommand(command="about", description="Узнать обо мне"),
         BotCommand(command="contact", description="Связаться со мной"),
+        BotCommand(command="order", description="Заказать услугу"),
     ]
     await bot.set_my_commands(commands)
     logger.info("Команды бота установлены")
@@ -221,9 +271,61 @@ async def process_contact_button(message: types.Message):
     await process_contact_command(message)
 
 @dp.message(lambda m: m.text == "⬅️ Назад")
-async def process_back(message: types.Message):
+async def process_back(message: types.Message, state: FSMContext):
     logger.info(f"Нажата кнопка Назад от {message.from_user.id}")
+    await state.clear()  # Сбрасываем состояние FSM
     await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
+
+# --- Обработчики для кнопки "Заказать услугу" и FSM ---
+@dp.message(lambda m: m.text == "💼 Заказать услугу")
+async def process_order_button(message: types.Message, state: FSMContext):
+    logger.info(f"Нажата кнопка Заказать услугу от {message.from_user.id}")
+    await state.set_state(OrderForm.waiting_for_name)
+    await message.answer("Пожалуйста, укажите ваше имя:", reply_markup=order_keyboard)
+
+@dp.message(OrderForm.waiting_for_name)
+async def process_name(message: types.Message, state: FSMContext):
+    logger.info(f"Получено имя от {message.from_user.id}: {message.text}")
+    await state.update_data(name=message.text)
+    await state.set_state(OrderForm.waiting_for_description)
+    await message.answer("Опишите, какой бот или приложение вам нужен:", reply_markup=order_keyboard)
+
+@dp.message(OrderForm.waiting_for_description)
+async def process_description(message: types.Message, state: FSMContext):
+    logger.info(f"Получено описание от {message.from_user.id}: {message.text}")
+    user_data = await state.get_data()
+    telegram_username = f"@{message.from_user.username}" if message.from_user.username else "Не указан"
+    
+    data = {
+        "name": user_data["name"],
+        "telegram": telegram_username,
+        "description": message.text
+    }
+    
+    try:
+        await append_to_sheets(data)
+        await message.answer(
+            "Ваша заявка успешно отправлена! Я свяжусь с вами скоро.",
+            reply_markup=main_keyboard
+        )
+        # Отправляем уведомление администратору
+        admin_msg = (
+            f"<b>Новая заявка (FSM)</b>\n"
+            f"Имя: {data['name']}\n"
+            f"Telegram: {data['telegram']}\n"
+            f"Описание: {data['description']}\n"
+            f"От: {message.from_user.id}"
+        )
+        await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.error(f"Ошибка обработки заявки: {e}")
+        await send_log_to_telegram(f"Ошибка обработки заявки: {e}")
+        await message.answer(
+            "Ошибка при отправке заявки. Попробуйте снова позже.",
+            reply_markup=main_keyboard
+        )
+    finally:
+        await state.clear()
 
 @dp.message()
 async def handle_web_app_data(message: types.Message):
