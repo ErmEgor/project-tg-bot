@@ -324,7 +324,7 @@ async def process_name(message: types.Message, state: FSMContext):
     await state.set_state(OrderForm.waiting_for_description)
     await message.answer("Опишите, какой бот или приложение вам нужен:", reply_markup=order_keyboard)
 
-@dp.message(OrderForm.waiting_description)
+@dp.message(OrderForm.waiting_for_description)
 async def process_description(message: types.Message, state: FSMContext):
     logger.info(f"Получено описание от {message.from_user.id}: {message.text}")
     user_data = await state.get_data()
