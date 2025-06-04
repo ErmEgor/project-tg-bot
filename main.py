@@ -162,6 +162,10 @@ help_keyboard: ReplyKeyboardMarkup = back_keyboard
 about_keyboard: ReplyKeyboardMarkup = back_keyboard
 contact_keyboard: ReplyKeyboardMarkup = back_keyboard
 order_keyboard: ReplyKeyboardMarkup = back_keyboard
+admin_back_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="⬅️ Назад в админ-панель")]],
+    resize_keyboard=True
+)
 
 contact_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[
     [
@@ -304,6 +308,15 @@ async def process_back(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("Вы вернулись к основному меню.", reply_markup=main_keyboard)
 
+@dp.message(lambda m: m.text == "⬅️ Назад в админ-панель")
+async def process_admin_back(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("У вас нет доступа.", reply_markup=main_keyboard)
+        return
+    logger.info(f"Нажата кнопка Назад в админ-панель от {message.from_user.id}")
+    await state.clear()
+    await message.answer("Вы вернулись в админ-панель.", reply_markup=admin_keyboard)
+
 # --- FSM для заказа ---
 @dp.message(Command("order"))
 async def process_order_command(message: types.Message, state: FSMContext):
@@ -417,7 +430,7 @@ async def start_notification(message: types.Message, state: FSMContext):
         return
     logger.info(f"Запрос на отправку уведомления от админа {message.from_user.id}")
     await state.set_state(AdminNotify.waiting_for_message)
-    await message.answer("Введите текст уведомления для всех пользователей:", reply_markup=back_keyboard)
+    await message.answer("Введите текст уведомления для всех пользователей:", reply_markup=admin_back_keyboard)
 
 @dp.message(AdminNotify.waiting_for_message)
 async def send_notification(message: types.Message, state: FSMContext):
