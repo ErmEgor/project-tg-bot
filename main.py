@@ -150,12 +150,12 @@ portfolio_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_ke
     ],
     # Второй ряд: боты-примеры
     [
-        InlineKeyboardButton(text="🛍️ Бот-каталог", url="https://t.me/your_catalog_bot_username"),
-        InlineKeyboardButton(text="📅 Бот для записи", url="https://t.me/your_booking_bot_username")
+        InlineKeyboardButton(text="🛍️ Бот-каталог", url="https://t.me/techspherez_bot"),
+        InlineKeyboardButton(text="📅 Бот для записи", url="https://t.me/aeternaz_bot")
     ],
     # Третий ряд: еще один бот
     [
-        InlineKeyboardButton(text="✍️ Бот для отзывов", url="https://t.me/your_feedback_bot_username")
+        InlineKeyboardButton(text="✍️ Бот для отзывов", url="https://t.me/aromagia_bot")
     ]
 ])
 
