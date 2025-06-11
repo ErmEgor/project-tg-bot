@@ -144,12 +144,18 @@ admin_keyboard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
 )
 
 portfolio_inline_keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[
+    # Первый ряд: основное приложение
     [
         InlineKeyboardButton(text="📱 Приложение", web_app=types.WebAppInfo(url="https://project-tg-frontend-git-main-ermegors-projects.vercel.app/")),
-        InlineKeyboardButton(text="🌐 Лендинг", url="https://ermegor.github.io/BuildMax/")
     ],
+    # Второй ряд: боты-примеры
     [
-        InlineKeyboardButton(text="🎨 Все работы сразу (Behance)", url="https://www.behance.net/gallery/227197709/portfolio-e-egora")
+        InlineKeyboardButton(text="🛍️ Бот-каталог", url="https://t.me/your_catalog_bot_username"),
+        InlineKeyboardButton(text="📅 Бот для записи", url="https://t.me/your_booking_bot_username")
+    ],
+    # Третий ряд: еще один бот
+    [
+        InlineKeyboardButton(text="✍️ Бот для отзывов", url="https://t.me/your_feedback_bot_username")
     ]
 ])
 
@@ -248,7 +254,8 @@ async def process_help_command(message: types.Message):
         "Данный бот — одна из работ <b>Е.Егора</b>.\n"
         "Портфолио — список работ Егора.\n"
         "Приложение — мини-приложение внутри Telegram.\n"
-        "Лендинг — полноценный сайт с работающими кнопками и дизайном.",
+        "Боты в портфолио - это другие проекты, заточенные под 1 задачу(каталог, запись на услуги и отзывы)\n"
+        "Заказать услугу - это раздел, использующий FSM для отправки заявки админу",
         parse_mode=ParseMode.HTML,
         reply_markup=help_keyboard
     )
