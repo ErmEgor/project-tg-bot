@@ -281,7 +281,7 @@ async def process_about_command(message: types.Message):
     await message.answer(
         "<b>Обо мне</b>\n"
         "Меня зовут Егор, мне 14 лет. Я начинающий Telegram-разработчик.\n"
-        "У меня есть проекты: сайт, бот и веб-приложение.\n"
+        "У меня есть свои первые проекты: 4 бота и телеграмм-приложение.\n"
         "Ищу заказы, чтобы расти и зарабатывать.",
         parse_mode=ParseMode.HTML,
         reply_markup=about_keyboard
